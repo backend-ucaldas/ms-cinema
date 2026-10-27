@@ -56,6 +56,7 @@ export class Seat {
 
   @ManyToOne(() => Theater, (theater) => theater.seats, {
     cascade: false,
+    nullable: false,
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'theater_id' })
@@ -63,7 +64,7 @@ export class Seat {
 }
 ```
 
-`cascade: false` evita creaciones o actualizaciones embebidas desde TypeORM. `onDelete: 'CASCADE'` hace que MySQL elimine las seats asociadas cuando se elimina su theater.
+`cascade: false` evita creaciones o actualizaciones embebidas desde TypeORM. `nullable: false` exige que cada seat tenga un theater. `onDelete: 'CASCADE'` hace que MySQL elimine las seats asociadas cuando se elimina su theater.
 
 ### 2.2 Agregar la relacion inversa a `Theater`
 
@@ -119,6 +120,8 @@ La migracion debe crear la tabla `seats` con:
 ```bash
 npx typeorm-ts-node-commonjs migration:run -d ./typeorm.config.ts
 ```
+
+> En este proyecto se genero y ejecuto `src/migrations/1793137658606-AddSeatsRelation.ts`.
 
 ---
 
@@ -230,17 +233,17 @@ export class SeatMapper {
     return entity;
   }
 
-  static toResponseDto(entity: Seat): SeatResponseDto {
+  static toResponseDto(entity: Seat, theaterId = entity.theater?.id): SeatResponseDto {
     return {
       id: entity.id,
       location: entity.location,
       reclining: entity.reclining,
-      theaterId: entity.theater.id,
+      theaterId: theaterId!,
     };
   }
 
-  static toResponseDtoList(entities: Seat[]): SeatResponseDto[] {
-    return entities.map((entity) => this.toResponseDto(entity));
+  static toResponseDtoList(entities: Seat[], theaterId?: number): SeatResponseDto[] {
+    return entities.map((entity) => this.toResponseDto(entity, theaterId));
   }
 }
 ```
@@ -255,7 +258,9 @@ Importa `SeatMapper` y agrega la propiedad `seats` en `toResponseDto`:
 import { SeatMapper } from '../../seats/mappers/seat.mapper';
 
 // Dentro de toResponseDto:
-seats: entity.seats ? SeatMapper.toResponseDtoList(entity.seats) : undefined,
+seats: entity.seats
+  ? SeatMapper.toResponseDtoList(entity.seats, entity.id)
+  : undefined,
 ```
 
 Tambien carga la relacion `seats` en `TheatersService.findAll` y `TheatersService.findOne`:
@@ -305,14 +310,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Theater } from '../theaters/entities/theater.entity';
 import { Seat } from './entities/seat.entity';
 import { SeatsController } from './seats.controller';
-import { SeatMapper } from './mappers/seat.mapper';
 import { SeatsRepository } from './repositories/seats.repository';
 import { SeatsService } from './seats.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Seat, Theater])],
   controllers: [SeatsController],
-  providers: [SeatsService, SeatsRepository, SeatMapper],
+  providers: [SeatsService, SeatsRepository],
 })
 export class SeatsModule {}
 ```

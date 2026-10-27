@@ -4,6 +4,7 @@ import { TheaterResponseDto } from '../dto/theater-response.dto';
 import { UpdateTheaterDto } from '../dto/update-theater.dto';
 import { Theater } from '../entities/theater.entity';
 import { ProjectorMapper } from '../../projectors/mappers/projector.mapper';
+import { SeatMapper } from '../../seats/mappers/seat.mapper';
 
 @Injectable()
 export class TheaterMapper {
@@ -27,6 +28,9 @@ export class TheaterMapper {
       capacity: entity.capacity,
       projector: entity.projector
         ? ProjectorMapper.toResponseDto(entity.projector)
+        : undefined,
+      seats: entity.seats
+        ? SeatMapper.toResponseDtoList(entity.seats, entity.id)
         : undefined,
     };
   }

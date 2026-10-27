@@ -1,5 +1,6 @@
 import { Projector } from '../../projectors/entities/projector.entity';
-import { Column, Entity, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Seat } from '../../seats/entities/seat.entity';
+import { Column, Entity, OneToMany, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('theaters')
 export class Theater {
@@ -14,4 +15,7 @@ export class Theater {
 
   @OneToOne(() => Projector, (projector) => projector.theater)
   projector?: Projector;
+
+  @OneToMany(() => Seat, (seat) => seat.theater, { cascade: false })
+  seats?: Seat[];
 }
