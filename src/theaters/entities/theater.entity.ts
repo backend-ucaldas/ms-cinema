@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Projector } from '../../projectors/entities/projector.entity';
+import { Column, Entity, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('theaters')
 export class Theater {
@@ -10,4 +11,7 @@ export class Theater {
 
   @Column({ type: 'int' })
   capacity!: number;
+
+  @OneToOne(() => Projector, (projector) => projector.theater)
+  projector?: Projector;
 }

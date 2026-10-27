@@ -120,9 +120,9 @@ const dataSource = new DataSource({
   username: process.env.DB_USER,
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
-  // Para CLI (ts-node) y para runtime compilado (dist)
-  entities: ['src/**/*.entity{.ts,.js}', 'dist/**/*.entity.js'],
-  migrations: ['src/migrations/*{.ts,.js}', 'dist/migrations/*.js'],
+  // El CLI usa las fuentes TypeScript para evitar cargar migraciones duplicadas.
+  entities: ['src/**/*.entity.ts'],
+  migrations: ['src/migrations/*.ts'],
   synchronize: false,
 });
 
@@ -296,7 +296,7 @@ export class Screening {
 `src/theaters/entities/theater.entity.ts`
 
 ```typescript
-import { Entity, Column, PrimaryGeneratedColumn, OneToOne, OneToMany, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, OneToOne, OneToMany } from 'typeorm';
 import { Projector } from '../../projectors/entities/projector.entity';
 import { Seat } from '../../seats/entities/seat.entity';
 import { Screening } from '../../screenings/entities/screening.entity';
@@ -312,8 +312,7 @@ export class Theater {
   @Column()
   capacity!: number;
 
-  @OneToOne(() => Projector, (projector) => projector.theater, { cascade: true })
-  @JoinColumn({ name: 'projector_id' })
+  @OneToOne(() => Projector, (projector) => projector.theater)
   projector!: Projector;
 
   @OneToMany(() => Seat, (seat) => seat.theater, { cascade: true })
@@ -611,7 +610,7 @@ npm run start
 
 ### Prueba en Postman
 
-Gracias a que configuramos `cascade: true` en la entidad `Theater`, podemos crear el teatro, el proyector y los asientos **en una sola petición**.
+La creación y actualización del teatro solo reciben sus propios campos. Crea o modifica el proyector mediante las rutas de `ProjectorsController`.
 
 | Campo | Valor |
 |---|---|
@@ -623,19 +622,11 @@ Gracias a que configuramos `cascade: true` en la entidad `Theater`, podemos crea
 ```json
 {
   "location": "Sala IMAX - Centro Mayor",
-  "capacity": 150,
-  "projector": {
-    "brand": "Sony Digital Cinema 4K",
-    "width": 4096,
-    "high": 2160
-  },
-  "seats": [
-    { "location": "A1", "reclining": true },
-    { "location": "A2", "reclining": true },
-    { "location": "B1", "reclining": false }
-  ]
+  "capacity": 150
 }
 ```
+
+Para crear un proyector asociado al teatro creado usa `POST /projectors` con `theaterId` en el body. Para modificarlo usa `PATCH /projectors/{id}`.
 
 ---
 

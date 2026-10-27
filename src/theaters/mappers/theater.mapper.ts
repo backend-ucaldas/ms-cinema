@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { TheaterDto } from '../dto/theater.dto';
 import { TheaterResponseDto } from '../dto/theater-response.dto';
 import { Theater } from '../entities/theater.entity';
+import { ProjectorMapper } from '../../projectors/mappers/projector.mapper';
 
 @Injectable()
 export class TheaterMapper {
@@ -23,6 +24,9 @@ export class TheaterMapper {
       id: entity.id,
       location: entity.location,
       capacity: entity.capacity,
+      projector: entity.projector
+        ? ProjectorMapper.toResponseDto(entity.projector)
+        : undefined,
     };
   }
 

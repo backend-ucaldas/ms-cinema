@@ -29,16 +29,21 @@ export class TheatersService {
 
     const entity = this.theaterMapper.toEntity(dto);
     const saved = await this.theatersRepository.save(entity);
-    return this.theaterMapper.toResponseDto(saved);
+    return this.findOne(saved.id);
   }
 
   async findAll(): Promise<TheaterResponseDto[]> {
-    const theaters = await this.theatersRepository.find();
+    const theaters = await this.theatersRepository.find({
+      relations: { projector: true },
+    });
     return this.theaterMapper.toResponseDtoList(theaters);
   }
 
   async findOne(id: number): Promise<TheaterResponseDto> {
-    const theater = await this.theatersRepository.findOne({ where: { id } });
+    const theater = await this.theatersRepository.findOne({
+      where: { id },
+      relations: { projector: true },
+    });
     if (!theater) {
       throw new NotFoundException(`Theater with id ${id} not found`);
     }
