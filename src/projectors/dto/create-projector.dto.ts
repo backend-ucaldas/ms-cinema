@@ -1,20 +1,17 @@
 import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 
-export class ProjectorDto {
-  @IsOptional()
+export class CreateProjectorDto {
   @IsString()
   @IsNotEmpty()
-  brand?: string;
+  brand!: string;
 
-  @IsOptional()
   @IsInt()
   @Min(1)
-  high?: number;
+  high!: number;
 
-  @IsOptional()
   @IsInt()
   @Min(1)
-  width?: number;
+  width!: number;
 
   @IsOptional()
   @IsInt()

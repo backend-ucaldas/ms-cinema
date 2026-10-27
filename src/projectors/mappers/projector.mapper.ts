@@ -1,18 +1,19 @@
-import { ProjectorDto } from '../dto/projector.dto';
+import { CreateProjectorDto } from '../dto/create-projector.dto';
 import { ProjectorResponseDto } from '../dto/projector-response.dto';
+import { UpdateProjectorDto } from '../dto/update-projector.dto';
 import { Projector } from '../entities/projector.entity';
 
 export class ProjectorMapper {
-  static toEntity(dto: ProjectorDto, theater?: Projector['theater']): Projector {
+  static toEntity(dto: CreateProjectorDto, theater?: Projector['theater']): Projector {
     return {
-      brand: dto.brand!,
-      high: dto.high!,
-      width: dto.width!,
+      brand: dto.brand,
+      high: dto.high,
+      width: dto.width,
       theater,
     } as Projector;
   }
 
-  static mergeEntity(entity: Projector, dto: ProjectorDto): Projector {
+  static mergeEntity(entity: Projector, dto: UpdateProjectorDto): Projector {
     if (dto.brand !== undefined) entity.brand = dto.brand;
     if (dto.high !== undefined) entity.high = dto.high;
     if (dto.width !== undefined) entity.width = dto.width;

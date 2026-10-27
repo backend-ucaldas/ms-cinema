@@ -1,14 +1,10 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Theater } from '../theaters/entities/theater.entity';
-import { ProjectorDto } from './dto/projector.dto';
+import { CreateProjectorDto } from './dto/create-projector.dto';
 import { ProjectorResponseDto } from './dto/projector-response.dto';
+import { UpdateProjectorDto } from './dto/update-projector.dto';
 import { Projector } from './entities/projector.entity';
 import { ProjectorMapper } from './mappers/projector.mapper';
 
@@ -21,11 +17,7 @@ export class ProjectorsService {
     private readonly theatersRepository: Repository<Theater>,
   ) {}
 
-  async create(dto: ProjectorDto): Promise<ProjectorResponseDto> {
-    if (dto.brand === undefined || dto.high === undefined || dto.width === undefined) {
-      throw new BadRequestException('brand, high and width are required for create');
-    }
-
+  async create(dto: CreateProjectorDto): Promise<ProjectorResponseDto> {
     const theater =
       dto.theaterId === undefined
         ? undefined
@@ -44,7 +36,7 @@ export class ProjectorsService {
     return ProjectorMapper.toResponseDto(projector);
   }
 
-  async update(id: number, dto: ProjectorDto): Promise<ProjectorResponseDto> {
+  async update(id: number, dto: UpdateProjectorDto): Promise<ProjectorResponseDto> {
     const projector = await this.findProjector(id);
     if (dto.theaterId !== undefined) {
       projector.theater = await this.getAvailableTheater(dto.theaterId, id);
