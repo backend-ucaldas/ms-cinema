@@ -355,7 +355,101 @@ export class ProjectorsModule {}
 
 El `ProjectorsController` es el punto de entrada para administrar proyectores. La creación recibe opcionalmente el `theaterId` en el body.
 
-### 9.1 Rutas recomendadas
+### 9.1 Implementar `ProjectorsService`
+
+Archivo: `src/projectors/projectors.service.ts`
+
+El servicio concentra las reglas de la relación 1-1: carga el theater al responder, verifica su existencia antes de asociarlo y evita que quede asociado a un segundo projector.
+
+```ts
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Theater } from '../theaters/entities/theater.entity';
+import { CreateProjectorDto } from './dto/create-projector.dto';
+import { ProjectorResponseDto } from './dto/projector-response.dto';
+import { UpdateProjectorDto } from './dto/update-projector.dto';
+import { Projector } from './entities/projector.entity';
+import { ProjectorMapper } from './mappers/projector.mapper';
+
+@Injectable()
+export class ProjectorsService {
+  constructor(
+    @InjectRepository(Projector)
+    private readonly projectorsRepository: Repository<Projector>,
+    @InjectRepository(Theater)
+    private readonly theatersRepository: Repository<Theater>,
+  ) {}
+
+  async create(dto: CreateProjectorDto): Promise<ProjectorResponseDto> {
+    const theater =
+      dto.theaterId === undefined
+        ? undefined
+        : await this.getAvailableTheater(dto.theaterId);
+    const saved = await this.projectorsRepository.save(
+      ProjectorMapper.toEntity(dto, theater),
+    );
+    return this.findOne(saved.id);
+  }
+
+  async findAll(): Promise<ProjectorResponseDto[]> {
+    const projectors = await this.projectorsRepository.find({
+      relations: { theater: true },
+    });
+    return projectors.map(ProjectorMapper.toResponseDto);
+  }
+
+  async findOne(id: number): Promise<ProjectorResponseDto> {
+    return ProjectorMapper.toResponseDto(await this.findProjector(id));
+  }
+
+  async update(id: number, dto: UpdateProjectorDto): Promise<ProjectorResponseDto> {
+    const projector = await this.findProjector(id);
+    if (dto.theaterId !== undefined) {
+      projector.theater = await this.getAvailableTheater(dto.theaterId, id);
+    }
+
+    const saved = await this.projectorsRepository.save(
+      ProjectorMapper.mergeEntity(projector, dto),
+    );
+    return ProjectorMapper.toResponseDto(saved);
+  }
+
+  async remove(id: number): Promise<{ message: string }> {
+    const projector = await this.findProjector(id);
+    await this.projectorsRepository.remove(projector);
+    return { message: `Projector #${id} deleted successfully` };
+  }
+
+  private async findProjector(id: number): Promise<Projector> {
+    const projector = await this.projectorsRepository.findOne({
+      where: { id },
+      relations: { theater: true },
+    });
+    if (!projector) throw new NotFoundException(`Projector with id ${id} not found`);
+    return projector;
+  }
+
+  private async getAvailableTheater(
+    theaterId: number,
+    currentProjectorId?: number,
+  ): Promise<Theater> {
+    const theater = await this.theatersRepository.findOne({
+      where: { id: theaterId },
+      relations: { projector: true },
+    });
+    if (!theater) throw new NotFoundException(`Theater with id ${theaterId} not found`);
+    if (theater.projector && theater.projector.id !== currentProjectorId) {
+      throw new ConflictException(`Theater with id ${theaterId} already has a projector`);
+    }
+    return theater;
+  }
+}
+```
+
+`currentProjectorId` permite actualizar un projector sin considerarlo un conflicto cuando ya está asociado al theater solicitado.
+
+### 9.2 Rutas recomendadas
 
 - `POST /projectors` → crear projector, con asociación opcional mediante `theaterId`.
 - `GET /projectors` → listar projectors.
@@ -363,7 +457,7 @@ El `ProjectorsController` es el punto de entrada para administrar proyectores. L
 - `PATCH /projectors/:id` → actualizar datos (`brand`, `high`, `width`) y, opcionalmente, asociar o reasignar mediante `theaterId`.
 - `DELETE /projectors/:id` → eliminar projector.
 
-### 9.2 Reglas de negocio 1-1 en service
+### 9.3 Reglas de negocio 1-1 en service
 
 En `ProjectorsService` valida siempre:
 
