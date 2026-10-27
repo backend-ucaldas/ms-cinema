@@ -250,7 +250,27 @@ export class TheaterMapper {
 
 ---
 
-## 8) Servicio: usar mapper para responder
+## 8) Crear módulo `Projectors`
+
+Archivo: `src/projectors/projectors.module.ts`
+
+```ts
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Projector } from './entities/projector.entity';
+
+@Module({
+  imports: [TypeOrmModule.forFeature([Projector])],
+  exports: [TypeOrmModule],
+})
+export class ProjectorsModule {}
+```
+
+Luego impórtalo donde corresponda (por ejemplo, en `TheatersModule` y/o `AppModule`) para dejar `projectors` encapsulado como módulo.
+
+---
+
+## 9) Servicio: usar mapper para responder
 
 Archivo: `src/theaters/theaters.service.ts`
 
@@ -289,7 +309,7 @@ async findOne(id: number): Promise<TheaterResponseDto> {
 
 ---
 
-## 9) Controlador (retorna DTO mapeado)
+## 10) Controlador (retorna DTO mapeado)
 
 Archivo: `src/theaters/theaters.controller.ts`
 
@@ -306,9 +326,9 @@ Al crear un teatro, puedes enviar también su proyector.
 
 ---
 
-## 10) Prueba en Postman/Insomnia
+## 11) Prueba en Postman/Insomnia
 
-### 8.1 Crear theater con projector (1-1)
+### 11.1 Crear theater con projector (1-1)
 
 `POST /theaters`
 
@@ -324,7 +344,7 @@ Al crear un teatro, puedes enviar también su proyector.
 }
 ```
 
-### 8.2 Consultar theater y verificar projector
+### 11.2 Consultar theater y verificar projector
 
 `GET /theaters/{id}`
 
@@ -332,7 +352,7 @@ Debe retornar el objeto `projector` asociado.
 
 ---
 
-## 11) Resumen
+## 12) Resumen
 
 Checklist para una relación 1-1 en Nest con TypeORM:
 
@@ -341,4 +361,5 @@ Checklist para una relación 1-1 en Nest con TypeORM:
 3. Migración con `UNIQUE` en la FK (`theater_id`).
 4. DTOs de entrada y de salida separados.
 5. Mappers para convertir entidad → response DTO.
-6. `relations: ['projector']` al consultar.
+6. `ProjectorsModule` creado e importado según tu arquitectura.
+7. `relations: ['projector']` al consultar.
