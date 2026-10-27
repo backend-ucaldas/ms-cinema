@@ -4,7 +4,7 @@ En este tutorial implementaremos el primer CRUD del proyecto de cine usando la e
 
 > Enfoque: seguir filosofía NestJS, manteniendo todo dentro del dominio `theaters` (controller, service, dto, mapper, entity, repository).
 >
-> En esta versión usamos **un solo DTO de entrada** para crear y actualizar: `TheaterDto`.
+> Usamos DTOs separados para creacion y actualizacion: `CreateTheaterDto` y `UpdateTheaterDto`.
 
 ---
 
@@ -36,7 +36,8 @@ Con:
 src/
 └── theaters/
     ├── dto/
-    │   ├── theater.dto.ts
+    │   ├── create-theater.dto.ts
+    │   ├── update-theater.dto.ts
     │   └── theater-response.dto.ts
     ├── entities/
     │   └── theater.entity.ts
@@ -85,27 +86,36 @@ export class Theater {
 
 ## 5) DTOs
 
-### 5.1 DTO único para crear y actualizar
+### 5.1 DTO de creacion
 
-Archivo: `src/theaters/dto/theater.dto.ts`
+Archivo: `src/theaters/dto/create-theater.dto.ts`
 
 ```typescript
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsInt, IsString, Max, Min } from 'class-validator';
 
-export class TheaterDto {
-  @IsOptional()
+export class CreateTheaterDto {
   @IsString()
-  location?: string;
+  location!: string;
 
-  @IsOptional()
   @IsInt()
   @Min(1)
   @Max(1000)
-  capacity?: number;
+  capacity!: number;
 }
 ```
 
-### 5.2 DTO de respuesta
+### 5.2 DTO de actualizacion
+
+Archivo: `src/theaters/dto/update-theater.dto.ts`
+
+```typescript
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateTheaterDto } from './create-theater.dto';
+
+export class UpdateTheaterDto extends PartialType(CreateTheaterDto) {}
+```
+
+### 5.3 DTO de respuesta
 
 Archivo: `src/theaters/dto/theater-response.dto.ts`
 
@@ -125,20 +135,21 @@ Archivo: `src/theaters/mappers/theater.mapper.ts`
 
 ```typescript
 import { Injectable } from '@nestjs/common';
-import { TheaterDto } from '../dto/theater.dto';
+import { CreateTheaterDto } from '../dto/create-theater.dto';
 import { TheaterResponseDto } from '../dto/theater-response.dto';
+import { UpdateTheaterDto } from '../dto/update-theater.dto';
 import { Theater } from '../entities/theater.entity';
 
 @Injectable()
 export class TheaterMapper {
-  toEntity(dto: TheaterDto): Theater {
+  toEntity(dto: CreateTheaterDto): Theater {
     return {
       location: dto.location,
       capacity: dto.capacity,
     } as Theater;
   }
 
-  mergeEntity(entity: Theater, dto: TheaterDto): Theater {
+  mergeEntity(entity: Theater, dto: UpdateTheaterDto): Theater {
     if (dto.location !== undefined) entity.location = dto.location;
     if (dto.capacity !== undefined) entity.capacity = dto.capacity;
     return entity;
@@ -165,11 +176,12 @@ export class TheaterMapper {
 Archivo: `src/theaters/theaters.service.ts`
 
 ```typescript
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { TheaterDto } from './dto/theater.dto';
+import { CreateTheaterDto } from './dto/create-theater.dto';
 import { TheaterResponseDto } from './dto/theater-response.dto';
+import { UpdateTheaterDto } from './dto/update-theater.dto';
 import { TheaterMapper } from './mappers/theater.mapper';
 import { TheatersRepository } from './repositories/theaters.repository';
 import { Theater } from './entities/theater.entity';
@@ -183,11 +195,7 @@ export class TheatersService {
     private readonly theaterMapper: TheaterMapper,
   ) {}
 
-  async create(dto: TheaterDto): Promise<TheaterResponseDto> {
-    if (dto.location === undefined || dto.capacity === undefined) {
-      throw new BadRequestException('location and capacity are required for create');
-    }
-
+  async create(dto: CreateTheaterDto): Promise<TheaterResponseDto> {
     const entity = this.theaterMapper.toEntity(dto);
     const saved = await this.theatersRepository.save(entity);
     return this.theaterMapper.toResponseDto(saved);
@@ -206,7 +214,7 @@ export class TheatersService {
     return this.theaterMapper.toResponseDto(theater);
   }
 
-  async update(id: number, dto: TheaterDto): Promise<TheaterResponseDto> {
+  async update(id: number, dto: UpdateTheaterDto): Promise<TheaterResponseDto> {
     const theater = await this.theatersRepository.findOne({ where: { id } });
     if (!theater) {
       throw new NotFoundException(`Theater with id ${id} not found`);
@@ -273,14 +281,15 @@ Archivo: `src/theaters/theaters.controller.ts`
 ```typescript
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
 import { TheatersService } from './theaters.service';
-import { TheaterDto } from './dto/theater.dto';
+import { CreateTheaterDto } from './dto/create-theater.dto';
+import { UpdateTheaterDto } from './dto/update-theater.dto';
 
 @Controller('theaters')
 export class TheatersController {
   constructor(private readonly theatersService: TheatersService) {}
 
   @Post()
-  create(@Body() dto: TheaterDto) {
+  create(@Body() dto: CreateTheaterDto) {
     return this.theatersService.create(dto);
   }
 
@@ -295,7 +304,7 @@ export class TheatersController {
   }
 
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: TheaterDto) {
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTheaterDto) {
     return this.theatersService.update(id, dto);
   }
 

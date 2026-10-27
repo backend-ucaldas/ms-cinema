@@ -231,7 +231,10 @@ export class Seat {
   @Column()
   reclining!: boolean;
 
-  @ManyToOne(() => Theater, (theater) => theater.seats, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Theater, (theater) => theater.seats, {
+    cascade: false,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'theater_id' })
   theater!: Theater;
 }
@@ -315,7 +318,7 @@ export class Theater {
   @OneToOne(() => Projector, (projector) => projector.theater)
   projector!: Projector;
 
-  @OneToMany(() => Seat, (seat) => seat.theater, { cascade: true })
+  @OneToMany(() => Seat, (seat) => seat.theater, { cascade: false })
   seats!: Seat[];
 
   @OneToMany(() => Screening, (screening) => screening.theater)

@@ -130,28 +130,25 @@ npx typeorm-ts-node-commonjs migration:run -d ./typeorm.config.ts
 
 ## 5) DTOs de entrada
 
-### 5.1 DTO único de `Projector`
+### 5.1 DTO de creacion de `Projector`
 
-Archivo: `src/projectors/dto/projector.dto.ts`
+Archivo: `src/projectors/dto/create-projector.dto.ts`
 
 ```ts
 import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 
-export class ProjectorDto {
-  @IsOptional()
+export class CreateProjectorDto {
   @IsString()
   @IsNotEmpty()
-  brand?: string;
+  brand!: string;
 
-  @IsOptional()
   @IsInt()
   @Min(1)
-  high?: number;
+  high!: number;
 
-  @IsOptional()
   @IsInt()
   @Min(1)
-  width?: number;
+  width!: number;
 
   @IsOptional()
   @IsInt()
@@ -160,7 +157,47 @@ export class ProjectorDto {
 }
 ```
 
-El mismo DTO se usa en `POST` y `PATCH`: el servicio exige `brand`, `high` y `width` al crear; para actualizar, todos los campos son opcionales. En ambos casos, si se envía `theaterId`, debe corresponder a un theater existente sin otro projector asignado.
+Los decoradores del DTO garantizan que `brand`, `high` y `width` sean obligatorios en `POST`. `theaterId` es opcional; si se envía, debe corresponder a un theater existente sin otro projector asignado.
+
+### 5.2 DTO de actualizacion de `Projector`
+
+Archivo: `src/projectors/dto/update-projector.dto.ts`
+
+```ts
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateProjectorDto } from './create-projector.dto';
+
+export class UpdateProjectorDto extends PartialType(CreateProjectorDto) {}
+```
+
+En `PATCH`, todos los campos son opcionales. Si llega `theaterId`, el projector se asocia o reasigna a ese theater.
+
+### 5.3 DTOs de `Theater`
+
+Archivo: `src/theaters/dto/create-theater.dto.ts`
+
+```ts
+import { IsInt, IsString, Max, Min } from 'class-validator';
+
+export class CreateTheaterDto {
+  @IsString()
+  location!: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(1000)
+  capacity!: number;
+}
+```
+
+Archivo: `src/theaters/dto/update-theater.dto.ts`
+
+```ts
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateTheaterDto } from './create-theater.dto';
+
+export class UpdateTheaterDto extends PartialType(CreateTheaterDto) {}
+```
 
 ---
 
@@ -204,21 +241,22 @@ export class TheaterResponseDto {
 Archivo: `src/projectors/mappers/projector.mapper.ts`
 
 ```ts
-import { ProjectorDto } from '../dto/projector.dto';
+import { CreateProjectorDto } from '../dto/create-projector.dto';
 import { ProjectorResponseDto } from '../dto/projector-response.dto';
+import { UpdateProjectorDto } from '../dto/update-projector.dto';
 import { Projector } from '../entities/projector.entity';
 
 export class ProjectorMapper {
-  static toEntity(dto: ProjectorDto, theater?: Projector['theater']): Projector {
+  static toEntity(dto: CreateProjectorDto, theater?: Projector['theater']): Projector {
     return {
-      brand: dto.brand!,
-      high: dto.high!,
-      width: dto.width!,
+      brand: dto.brand,
+      high: dto.high,
+      width: dto.width,
       theater,
     } as Projector;
   }
 
-  static mergeEntity(entity: Projector, dto: ProjectorDto): Projector {
+  static mergeEntity(entity: Projector, dto: UpdateProjectorDto): Projector {
     if (dto.brand !== undefined) entity.brand = dto.brand;
     if (dto.high !== undefined) entity.high = dto.high;
     if (dto.width !== undefined) entity.width = dto.width;
@@ -244,20 +282,21 @@ Archivo: `src/theaters/mappers/theater.mapper.ts`
 ```ts
 import { Injectable } from '@nestjs/common';
 import { ProjectorMapper } from '../../projectors/mappers/projector.mapper';
-import { TheaterDto } from '../dto/theater.dto';
+import { CreateTheaterDto } from '../dto/create-theater.dto';
 import { TheaterResponseDto } from '../dto/theater-response.dto';
+import { UpdateTheaterDto } from '../dto/update-theater.dto';
 import { Theater } from '../entities/theater.entity';
 
 @Injectable()
 export class TheaterMapper {
-  toEntity(dto: TheaterDto): Theater {
+  toEntity(dto: CreateTheaterDto): Theater {
     return {
       location: dto.location,
       capacity: dto.capacity,
     } as Theater;
   }
 
-  mergeEntity(entity: Theater, dto: TheaterDto): Theater {
+  mergeEntity(entity: Theater, dto: UpdateTheaterDto): Theater {
     if (dto.location !== undefined) entity.location = dto.location;
     if (dto.capacity !== undefined) entity.capacity = dto.capacity;
     return entity;
@@ -340,7 +379,7 @@ Archivo: `src/theaters/theaters.controller.ts`
 
 ```ts
 @Post()
-create(@Body() dto: TheaterDto): Promise<TheaterResponseDto> {
+create(@Body() dto: CreateTheaterDto): Promise<TheaterResponseDto> {
   return this.theatersService.create(dto);
 }
 ```
