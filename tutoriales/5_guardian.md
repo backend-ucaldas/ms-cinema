@@ -8,8 +8,8 @@ Proteger la API de cine con un **Guard** de NestJS. Antes de que un controlador 
 2. Comprueba que llegue el header `Authorization: Bearer <token>`.
 3. Extrae el token sin modificarlo.
 4. Envía al microservicio de seguridad el token, la URL y el método HTTP solicitados.
-5. Si el microservicio responde exactamente `true`, Nest permite que la petición continúe.
-6. Si responde `false`, no responde o falla, Nest rechaza el acceso.
+5. Si el microservicio responde `{ "allowed": true }`, Nest permite que la petición continúe.
+6. Si responde `{ "allowed": false }`, no responde o falla, Nest rechaza el acceso.
 
 El guard no valida ni decodifica el JWT localmente. El microservicio de seguridad es la fuente de verdad para determinar si el token tiene permisos sobre la ruta solicitada.
 
@@ -22,7 +22,7 @@ Cliente HTTP
     │ Authorization: Bearer eyJ...
     ▼
 Cinema API: SecurityGuard
-    │ POST MS_SECURITY/api/public/security/permissions-validation
+    │ POST MS_SECURITY/api/internal/security/permissions-validation
     │ Authorization: Bearer eyJ...
     │ { url: "/movies", method: "POST" }
     ▼
@@ -55,7 +55,7 @@ MS_SECURITY=http://localhost:8080
 En este ejemplo se asume que el microservicio expone:
 
 ```text
-POST /api/public/security/permissions-validation
+POST /api/internal/security/permissions-validation
 ```
 
 con este contrato:
@@ -77,10 +77,12 @@ Content-Type: application/json
 Respuesta esperada del microservicio:
 
 ```json
-true
+{
+  "allowed": true
+}
 ```
 
-Si el microservicio usa otra ruta, payload o devuelve `{ "allowed": true }`, ajusta el URL o la condición indicada en el guard.
+Este contrato es interno y requiere el JWT del usuario. `ms_security` devuelve HTTP 200 tanto para permiso concedido como denegado; la decisión está en la propiedad `allowed`.
 
 ---
 
@@ -108,6 +110,10 @@ import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { Request } from 'express';
 
+interface PermissionValidationResponse {
+  allowed: boolean;
+}
+
 @Injectable()
 export class SecurityGuard implements CanActivate {
   private readonly logger = new Logger(SecurityGuard.name);
@@ -125,10 +131,11 @@ export class SecurityGuard implements CanActivate {
     }
 
     try {
-      const response = await axios.post<boolean>(
-        `${securityBaseUrl}/api/public/security/permissions-validation`,
+      const response = await axios.post<PermissionValidationResponse>(
+        `${securityBaseUrl}/api/internal/security/permissions-validation`,
         {
-          // originalUrl conserva query string; path solo representa la ruta.
+          // La tabla de permisos de ms_security registra rutas como /movies.
+          // No se incluye el query string porque no forma parte del permiso.
           url: request.path,
           method: request.method,
         },
@@ -138,7 +145,7 @@ export class SecurityGuard implements CanActivate {
         },
       );
 
-      if (response.data === true) return true;
+      if (response.data.allowed === true) return true;
 
       throw new ForbiddenException('No tiene permiso para acceder a este recurso');
     } catch (error) {
@@ -185,8 +192,8 @@ export class SecurityGuard implements CanActivate {
 |---|---|
 | No llega `Authorization` | `401 Unauthorized` |
 | Header no tiene formato Bearer | `401 Unauthorized` |
-| Seguridad responde `true` | El endpoint continúa |
-| Seguridad responde `false` | `403 Forbidden` |
+| Seguridad responde `{ allowed: true }` | El endpoint continúa |
+| Seguridad responde `{ allowed: false }` | `403 Forbidden` |
 | Seguridad responde `401` | `401 Unauthorized` |
 | Seguridad responde `403` | `403 Forbidden` |
 | Seguridad no responde, excede 5 s o falla | `503 Service Unavailable` |
@@ -311,8 +318,8 @@ El guard enviará al servicio remoto:
 }
 ```
 
-- Si el microservicio devuelve `true`, recibes la respuesta normal `201 Created`.
-- Si devuelve `false`, recibes `403 Forbidden` y el controlador no se ejecuta.
+- Si el microservicio devuelve `{ "allowed": true }`, recibes la respuesta normal `201 Created`.
+- Si devuelve `{ "allowed": false }`, recibes `403 Forbidden` y el controlador no se ejecuta.
 - Si el token falta o tiene formato inválido, recibes `401 Unauthorized`.
 
 ---
@@ -322,6 +329,6 @@ El guard enviará al servicio remoto:
 1. `SecurityGuard` implementa `CanActivate` y se ejecuta antes de los controladores.
 2. El token se toma de `Authorization: Bearer <token>`.
 3. Cinema API reenvía el token al microservicio de seguridad junto con la ruta y el método.
-4. Solo la respuesta booleana estricta `true` autoriza la solicitud.
+4. Solo la respuesta `{ allowed: true }` autoriza la solicitud.
 5. `false` se traduce en `403`; un token ausente o inválido, en `401`.
 6. Si el microservicio no está disponible, se responde `503` para no permitir accesos sin validar.
