@@ -119,7 +119,7 @@ export class Screening {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column({ type: 'datetime' })
+  @Column({ name: 'scheduled_at', type: 'datetime' })
   scheduledAt!: Date;
 
   @ManyToOne(() => Theater, (theater) => theater.screenings, {
